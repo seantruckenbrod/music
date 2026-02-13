@@ -1,89 +1,147 @@
-# SoundCrate prototype
+const state = {
+  profile: {
+    big3Musicians: ["SZA", "Kendrick Lamar", "Frank Ocean"],
+    big3Songs: ["Nights", "Good Days", "SAMIDOT"],
+  },
+  feed: [
+    {
+      postedBy: "Maya",
+      song: "Ain't It Fun",
+      artist: "Paramore",
+      note: "Heard this in a thrift shop and forgot how hard it hits.",
+    },
+    {
+      postedBy: "Theo",
+      song: "Bags",
+      artist: "Clairo",
+      note: "If you like mellow late-night tracks, this one is perfect.",
+    },
+    {
+      postedBy: "Noah",
+      song: "Electric Feel",
+      artist: "MGMT",
+      note: "Found this again through an old FIFA playlist.",
+    },
+  ],
+  currentIndex: 0,
+  dms: [
+    { fromMe: false, text: "Yo, dropped a new song in the feed!" },
+    { fromMe: true, text: "Just saved it — great pick." },
+  ],
+  savedSongs: [],
+};
 
-A simple front-end prototype for a music-focused social app inspired by Letterboxd.
+const musiciansList = document.querySelector("#big3-musicians");
+const songsList = document.querySelector("#big3-songs");
+const songCard = document.querySelector("#song-card");
+const skipBtn = document.querySelector("#skip-btn");
+const saveBtn = document.querySelector("#save-btn");
+const chatLog = document.querySelector("#chat-log");
+const dmForm = document.querySelector("#dm-form");
+const dmInput = document.querySelector("#dm-input");
+const messageTemplate = document.querySelector("#chat-message-template");
+const discoveryDialog = document.querySelector("#discovery-dialog");
+const discoveryBtn = document.querySelector("#new-discovery-btn");
+const cancelDialogBtn = document.querySelector("#cancel-dialog");
+const discoveryForm = document.querySelector("#discovery-form");
 
-## What this is
+function renderBig3() {
+  musiciansList.innerHTML = "";
+  songsList.innerHTML = "";
 
-This repo is a **static website** (HTML + CSS + JavaScript). That means you can host it on any static host (GitHub Pages, Netlify, Vercel, Cloudflare Pages, etc.) without a backend server.
+  state.profile.big3Musicians.forEach((artist) => {
+    const item = document.createElement("li");
+    item.textContent = artist;
+    musiciansList.append(item);
+  });
 
-## Features
+  state.profile.big3Songs.forEach((song) => {
+    const item = document.createElement("li");
+    item.textContent = song;
+    songsList.append(item);
+  });
+}
 
-- Big 3 musicians and Big 3 songs profile panel.
-- Swipe-style song discovery feed from followed users.
-- Ability to post newly discovered songs.
-- Direct message panel with live message updates.
+function renderCurrentSong() {
+  if (!state.feed.length) {
+    songCard.innerHTML = "<h3>No songs yet</h3><p class='meta'>Follow more people to discover tracks.</p>";
+    return;
+  }
 
----
+  const current = state.feed[state.currentIndex % state.feed.length];
+  songCard.innerHTML = `
+    <h3>${current.song} — ${current.artist}</h3>
+    <p class="meta">Shared by @${current.postedBy}</p>
+    <p class="note">“${current.note}”</p>
+    <p class="meta">Saved by you: ${state.savedSongs.length}</p>
+  `;
+}
 
-## Run locally
+function renderMessages() {
+  chatLog.innerHTML = "";
 
-```bash
-python -m http.server 8000
-```
+  state.dms.forEach((message) => {
+    const node = messageTemplate.content.firstElementChild.cloneNode(true);
+    node.classList.toggle("me", message.fromMe);
+    node.querySelector(".bubble").textContent = message.text;
+    chatLog.append(node);
+  });
 
-Then open:
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
 
-- `http://localhost:8000`
+function nextSong() {
+  state.currentIndex = (state.currentIndex + 1) % state.feed.length;
+  renderCurrentSong();
+}
 
----
+skipBtn.addEventListener("click", nextSong);
 
-## Turn this into a real website (fastest path: GitHub Pages)
+saveBtn.addEventListener("click", () => {
+  const current = state.feed[state.currentIndex % state.feed.length];
+  state.savedSongs.push(current);
+  renderCurrentSong();
+  nextSong();
+});
 
-### 1) Push this repo to GitHub
+dmForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const text = dmInput.value.trim();
+  if (!text) return;
 
-```bash
-git remote add origin https://github.com/<your-username>/<repo-name>.git
-git push -u origin work
-```
+  state.dms.push({ fromMe: true, text });
+  dmInput.value = "";
+  renderMessages();
 
-> If your default branch is `main`, you can merge `work` into `main` first.
+  setTimeout(() => {
+    state.dms.push({ fromMe: false, text: "Nice — let's queue that for tonight." });
+    renderMessages();
+  }, 500);
+});
 
-### 2) Enable GitHub Pages
+discoveryBtn.addEventListener("click", () => {
+  discoveryDialog.showModal();
+});
 
-1. Go to **Repo → Settings → Pages**.
-2. Under **Build and deployment**, choose:
-   - **Source**: Deploy from a branch
-   - **Branch**: `main` (or `work`) and `/ (root)`
-3. Save.
+cancelDialogBtn.addEventListener("click", () => {
+  discoveryDialog.close();
+});
 
-GitHub will publish your site to something like:
+discoveryForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const song = document.querySelector("#song-name").value.trim();
+  const artist = document.querySelector("#artist-name").value.trim();
+  const note = document.querySelector("#song-note").value.trim();
 
-- `https://<your-username>.github.io/<repo-name>/`
+  if (!song || !artist || !note) return;
 
-### 3) If styles/scripts do not load on sub-paths
+  state.feed.unshift({ postedBy: "you", song, artist, note });
+  state.currentIndex = 0;
+  renderCurrentSong();
+  discoveryDialog.close();
+  discoveryForm.reset();
+});
 
-This project already uses relative paths (`styles.css`, `app.js`), so it should work on GitHub Pages as-is.
-
----
-
-## One-command alternatives
-
-### Netlify Drop (no CLI)
-
-1. Zip the project files (`index.html`, `styles.css`, `app.js`).
-2. Go to [https://app.netlify.com/drop](https://app.netlify.com/drop).
-3. Drag and drop the zip.
-4. You immediately get a public URL.
-
-### Vercel (CLI)
-
-```bash
-npm i -g vercel
-vercel --prod
-```
-
-(Choose defaults; this static app deploys directly.)
-
----
-
-## Important next step (to make it a true social app)
-
-Right now, data is in-memory in `app.js`, so refresh resets posts/DMs. To make this production-ready, add:
-
-- Authentication (Clerk/Auth0/Supabase Auth)
-- Database (Supabase/Postgres/Firebase)
-- Real-time messaging (Supabase Realtime/Pusher/Socket.IO)
-- Song metadata integration (Spotify or Apple Music API)
-- Media storage for profile images (S3/Cloudinary)
-
-If you want, I can do the next step and scaffold this into a real full-stack app (React + Supabase) with login, follows, persistent Big 3, swipe feed, and real DMs.
+renderBig3();
+renderCurrentSong();
+renderMessages();
